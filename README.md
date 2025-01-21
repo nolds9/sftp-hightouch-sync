@@ -70,24 +70,11 @@ SNS_TOPIC_ARN=arn:aws:sns:region:account:topic
 
 ## Deployment
 
-1. Build TypeScript:
+Run deployment script in `scripts/deploy.sh` via npm:
 
-   ```bash
-   npm run build
-   ```
-
-2. Package for Lambda:
-
-   ```bash
-   zip -r function.zip dist node_modules
-   ```
-
-3. Deploy:
-   ```bash
-   aws lambda update-function-code \
-     --function-name sftp-sync \
-     --zip-file fileb://function.zip
-   ```
+```bash
+npm run deploy
+```
 
 ## Monitoring
 
