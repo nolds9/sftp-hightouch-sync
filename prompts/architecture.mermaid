@@ -1,0 +1,33 @@
+graph TD
+    %% Core Components
+    A[Scheduler Service] -->|"Triggers (10am, 4pm, 10pm EST)"| B[SFTP Service]
+    B --> C[Remote File Handler]
+    C --> D[Hightouch API Client]
+    
+    %% Error Handling & Logging
+    B --> E[Error Handler]
+    C --> E
+    D --> E
+    E --> F[Logging Service]
+    E --> N[Email Notification Service]
+    
+    %% Configuration Management
+    G[Environment Config] --> B
+    G --> C
+    G --> D
+    
+    %% Health Monitoring
+    H[Health Check Service] --> B
+    
+    %% Detailed Process Flow
+    subgraph Process Flow
+        I[Connect to SFTP] --> J[Generate Source Filename]
+        J --> K[Copy Remote File]
+        K --> L[Trigger Hightouch Sync]
+        L --> M[Disconnect SFTP]
+    end
+
+    %% File Paths
+    subgraph Remote SFTP Server
+        O["/tmp/data/data-YYYY-MM-DD.csv"] --> P["/tmp/hightouch/current-data.csv"]
+    end
