@@ -1,29 +1,102 @@
-# SFTP Sync
+# SFTP Sync Lambda Service
 
-## High Level
+## Overview
 
-- This is a scheduled service to copy a file from a remote SFTP server to another destination on that remote server, then kick off a HighTouch Sync via the Hightouch API.
-- This service is designed to be run on a remote server, as a docker container, uploaded to ECR, and run on an ECS cluster.
-- This service takes a configuration based approach and leverages environment variables for all sensitive information. These environment variables are stored in AWS Secrets Manager.
-- The service will be deployed to the AWS ECS cluster in the `prod` environment.
-- This service will be built using TypeScript and leverage github actions for CI/CD.
-- This service will have a docker image built and pushed to the ECR repository on every code commit.
-- This service will have a error handling and logging strategy in place. A notification service will be used to send errors to an email using NodeMailer.
-- This service will have a health check feature to ensure it is configured correctly.
-- This service will be as cost effective as possible while also following AWS best practices.
-- THis service will run on a cron schedule configured by the config file but initially at 10:05 AM, 4:05 PM, & 10:05 PM EST
+Simple Lambda function that runs on a schedule to copy files on a remote SFTP server and trigger a Hightouch sync. Provides email notifications via SNS for any failures.
 
-## Detailed Design
+## Features
 
-High level architecture can be found in the [architecture.mermaid](./architecture.mermaid) file.
+- Scheduled execution (10am, 4pm, 10pm EST)
+- SFTP file copying
+- Hightouch sync triggering
+- SNS notifications for errors
+- TypeScript for type safety
+- Minimal AWS infrastructure
 
-## Implementation
+## Project Structure
 
-- [ ] Create a new docker image for the service.
-- [ ] Create a new github actions workflow to build, test, and push the docker image to the ECR repository.
-- [ ] Create a new ECS task definition for the service.
-- [ ] Create a new ECS service to run the task definition.
-- [ ] Create a new ECS cluster to run the service.
-- [ ] Create a new AWS Secrets Manager secret for the service.
-- [ ] Create a new AWS CloudWatch log group for the service.
-- [ ] Create a new AWS CloudWatch alarm to monitor the service.
+```
+sftp-sync/
+├── src/
+│   ├── index.ts           # Lambda handler
+│   ├── sync.ts           # Main sync logic
+│   ├── config.ts         # Configuration management
+│   └── types.ts          # TypeScript types
+├── infrastructure/
+│   └── main.tf           # Terraform configuration
+├── scripts/
+│   └── deploy.sh         # Deployment helper
+├── package.json
+├── tsconfig.json
+├── .gitignore
+└── README.md
+```
+
+## Required AWS Resources
+
+1. Lambda Function
+
+   - Memory: 128MB
+   - Timeout: 5 minutes
+   - Runtime: Node.js 20.x
+
+2. EventBridge Rule
+
+   - Schedule: cron(0 10,16,22 \* _ ? _)
+   - Target: Lambda function
+
+3. SNS Topic
+
+   - Email subscription for alerts
+
+4. IAM Role
+   - Lambda execution
+   - SNS publish permissions
+
+## Environment Variables
+
+```env
+SFTP_HOST=example.com
+SFTP_PORT=22
+SFTP_USERNAME=user
+SFTP_PASSWORD=pass
+SFTP_SOURCE_DIR=/tmp/data
+SFTP_DEST_DIR=/tmp/hightouch
+SFTP_DEST_FILENAME=current-data.csv
+HIGHTOUCH_API_KEY=your-api-key
+HIGHTOUCH_SYNC_ID=your-sync-id
+SNS_TOPIC_ARN=arn:aws:sns:region:account:topic
+```
+
+## Deployment
+
+1. Build TypeScript:
+
+   ```bash
+   npm run build
+   ```
+
+2. Package for Lambda:
+
+   ```bash
+   zip -r function.zip dist node_modules
+   ```
+
+3. Deploy:
+   ```bash
+   aws lambda update-function-code \
+     --function-name sftp-sync \
+     --zip-file fileb://function.zip
+   ```
+
+## Monitoring
+
+- CloudWatch Logs for execution logs
+- SNS notifications for errors
+- Manual execution possible via AWS Console
+
+## Maintenance
+
+- Update dependencies monthly
+- Rotate SFTP credentials as needed
+- Monitor CloudWatch Logs for issues
