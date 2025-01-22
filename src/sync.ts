@@ -1,6 +1,6 @@
 import Client from "ssh2-sftp-client";
 import { SNS } from "@aws-sdk/client-sns";
-import { Config, SyncResult, SyncStatusResponse } from "./types";
+import { Config, SyncResult, SyncResponse } from "./types";
 import { format, subHours, isToday, isYesterday } from "date-fns";
 
 export class SyncService {
@@ -23,7 +23,7 @@ export class SyncService {
       // Get the relevant files for this run
       const [firstFile, nextFile] = await this.findRelevantFiles();
 
-      // Process first file (11 21_24)
+      // Process first file (11 21 24_)
       console.log("Processing first export file:", firstFile);
       await this.processFile(firstFile, this.config.destFilename);
       await this.triggerAndWaitForSync();
@@ -76,7 +76,7 @@ export class SyncService {
 
         // Must match one of our patterns
         return (
-          f.name.includes("FTP Export 11 21_24") ||
+          f.name.includes("FTP Export 11 21 24_") ||
           f.name.includes("FTP Export Next")
         );
       })
@@ -88,7 +88,7 @@ export class SyncService {
     console.log(`Found ${dateFiles.length} matching files for date ${dateStr}`);
 
     // Get the most recent file of each type
-    const firstExport = dateFiles.find((f) => f.name.includes("11 21_24"));
+    const firstExport = dateFiles.find((f) => f.name.includes("11 21 24_"));
     const nextExport = dateFiles.find((f) => f.name.includes("Next"));
 
     if (!firstExport || !nextExport) {
@@ -140,61 +140,78 @@ export class SyncService {
   private async triggerAndWaitForSync(): Promise<void> {
     console.log("Triggering Hightouch sync");
 
+    const baseUrl = "https://api.hightouch.io/api/v1";
+
     // Trigger the sync
     const triggerResponse = await fetch(
-      `https://api.hightouch.io/api/v1/syncs/${this.config.syncId}/trigger`,
+      `${baseUrl}/syncs/${this.config.syncId}/trigger`,
       {
         method: "POST",
         headers: {
           Authorization: `Bearer ${this.config.apiKey}`,
           "Content-Type": "application/json",
         },
+        body: JSON.stringify({
+          fullResync: false,
+        }),
       }
     );
 
     if (!triggerResponse.ok) {
       const error = await triggerResponse.text();
+      console.error("Trigger response:", {
+        status: triggerResponse.status,
+        statusText: triggerResponse.statusText,
+        error,
+      });
       throw new Error(`Failed to trigger Hightouch sync: ${error}`);
     }
 
-    const { id: syncRunId } = (await triggerResponse.json()) as {
-      id: string;
-    };
+    const triggerData = await triggerResponse.json();
+    console.log("Trigger response data:", triggerData);
 
-    // Poll for completion
+    // Instead of using a separate endpoint, let's check the sync status directly
     let attempts = 0;
     const maxAttempts = 30; // 5 minutes with 10-second intervals
 
     while (attempts < maxAttempts) {
-      const statusResponse = await fetch(
-        `https://api.hightouch.io/api/v1/sync-runs/${syncRunId}`,
+      const syncResponse = await fetch(
+        `${baseUrl}/syncs/${this.config.syncId}`,
         {
           headers: {
             Authorization: `Bearer ${this.config.apiKey}`,
+            Accept: "application/json",
           },
         }
       );
 
-      if (!statusResponse.ok) {
-        throw new Error("Failed to check sync status");
+      if (!syncResponse.ok) {
+        const error = await syncResponse.text();
+        console.error("Status response:", {
+          status: syncResponse.status,
+          statusText: syncResponse.statusText,
+          error,
+        });
+        throw new Error(`Failed to check sync status: ${error}`);
       }
 
-      const parsedStatus = (await statusResponse.json()) as SyncStatusResponse;
+      const syncData = (await syncResponse.json()) as SyncResponse;
 
-      if (parsedStatus.status === "done") {
+      if (syncData.status === "success") {
         console.log("Hightouch sync completed successfully");
         return;
       }
 
-      if (parsedStatus.status === "failed") {
-        const failingRun = parsedStatus.syncRuns.find(
-          (run) => run.status === "failed"
-        );
-        console.dir(parsedStatus, { depth: null });
-        throw new Error(
-          `Hightouch sync failed: ${parsedStatus.id} request ${failingRun?.syncRunId} failed`
-        );
+      if (syncData.status === "failed") {
+        console.dir(syncData, { depth: null });
+        throw new Error(`Hightouch sync failed: ${syncData.id}`);
       }
+
+      console.log(
+        `Sync status: ${syncData.status} (attempt ${
+          attempts + 1
+        }/${maxAttempts})`
+      );
 
       // Wait 10 seconds before checking again
       await new Promise((resolve) => setTimeout(resolve, 10000));

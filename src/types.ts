@@ -39,8 +39,54 @@ export interface SyncRun {
   syncRunId: number;
 }
 
-export interface SyncStatusResponse {
-  id: string;
-  status: "pending" | "running" | "done" | "failed" | "cancelled";
-  syncRuns: SyncRun[];
+export interface SyncResponse {
+  id: number;
+  slug: string;
+  workspaceId: number;
+  createdAt: string;
+  updatedAt: string;
+  destinationId: number;
+  modelId: number;
+  configuration: {
+    mode: string;
+    object: string;
+    mappings: Array<{
+      to: string;
+      from: string;
+      type: string;
+    }>;
+    objectId: string;
+    externalIdMapping: {
+      to: string;
+      from: string;
+      type: string;
+    };
+    associationMappings: any[];
+  };
+  schedule: {
+    type: string;
+    schedule: {
+      interval: {
+        unit: string;
+        quantity: number;
+      };
+    };
+  };
+  disabled: boolean;
+  status:
+    | "disabled"
+    | "pending"
+    | "cancelled"
+    | "failed"
+    | "queued"
+    | "success"
+    | "warning"
+    | "querying"
+    | "processing"
+    | "reporting"
+    | "interrupted";
+  lastRunAt: string;
+  referencedColumns: string[];
+  primaryKey: string;
+  externalSegment: Record<string, never>;
 }
