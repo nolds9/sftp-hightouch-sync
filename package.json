@@ -6,7 +6,9 @@
   "scripts": {
     "build": "tsc",
     "test": "jest",
-    "deploy": "./scripts/deploy.sh",
+    "deploy": "npm run deploy:windows",
+    "deploy:windows": "powershell -File scripts/deploy.ps1",
+    "deploy:unix": "bash scripts/deploy.sh",
     "local": "ts-node src/local.ts"
   },
   "keywords": [],

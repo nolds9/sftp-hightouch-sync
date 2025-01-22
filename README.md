@@ -70,10 +70,28 @@ SNS_TOPIC_ARN=arn:aws:sns:region:account:topic
 
 ## Deployment
 
-Run deployment script in `scripts/deploy.sh` via npm:
+Run deployment script via npm for appropriate OS:
+
+For Windows:
 
 ```bash
-npm run deploy
+npm run deploy:windows
+```
+
+For Unix:
+
+```bash
+npm run deploy:unix
+```
+
+This will create a `function.zip` file in the root of the project.
+
+Then you will need to run `terraform plan` and `terraform apply` in the `infrastructure` directory to deploy the Lambda function and EventBridge rule.
+
+```bash
+cd infrastructure
+terraform plan
+terraform apply
 ```
 
 ## Monitoring

@@ -44,6 +44,7 @@ terraform.rc
 .webpack/
 build/
 dist/
+*.zip
 
 # OS
 .DS_Store

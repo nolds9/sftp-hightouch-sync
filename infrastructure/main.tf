@@ -72,17 +72,14 @@ resource "aws_iam_role_policy" "lambda_policy" {
 
 # Lambda Function
 resource "aws_lambda_function" "sftp_sync" {
-  # filename will be added back after code is ready
+  filename         = "../function.zip"  # This will be created by deploy.sh
   function_name    = "sftp-sync"
   role             = aws_iam_role.lambda_role.arn
   handler          = "index.handler"
   runtime          = "nodejs20.x"
-  memory_size      = 256  # Increase slightly for SFTP operations
-  timeout          = 300  # 5 minutes
-  # source_code_hash will be added back after initial deployment
-  
-  # Add a placeholder zip for initial creation
-  filename = "${path.module}/dummy.zip"
+  memory_size      = 256
+  timeout          = 300
+  source_code_hash = filebase64sha256("../function.zip")
   
   environment {
     variables = {
