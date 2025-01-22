@@ -22,3 +22,25 @@ export interface SyncResult {
   message: string;
   error?: Error;
 }
+
+export interface SyncRun {
+  syncId: number;
+  status:
+    | "cancelled"
+    | "failed"
+    | "queued"
+    | "success"
+    | "warning"
+    | "querying"
+    | "processing"
+    | "reporting"
+    | "interrupted";
+  finishedAt: string;
+  syncRunId: number;
+}
+
+export interface SyncStatusResponse {
+  id: string;
+  status: "pending" | "running" | "done" | "failed" | "cancelled";
+  syncRuns: SyncRun[];
+}
