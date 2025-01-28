@@ -1,6 +1,6 @@
 {
   "name": "sftp-sync",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Lambda function to sync SFTP files and trigger Hightouch",
   "main": "dist/index.js",
   "scripts": {

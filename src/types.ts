@@ -21,6 +21,8 @@ export interface SyncResult {
   success: boolean;
   message: string;
   error?: Error;
+  partialFailure?: boolean;
+  failedFiles?: string[];
 }
 
 export interface SyncRun {

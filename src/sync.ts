@@ -3,6 +3,12 @@ import { SNS } from "@aws-sdk/client-sns";
 import { Config, SyncResult, SyncResponse } from "./types";
 import { format, subHours, isToday, isYesterday } from "date-fns";
 
+interface FileProcessResult {
+  filename: string;
+  success: boolean;
+  error?: Error;
+}
+
 export class SyncService {
   private config: Config;
   private sns: SNS;
@@ -17,30 +23,63 @@ export class SyncService {
   async execute(): Promise<SyncResult> {
     try {
       console.log("Starting SFTP sync process");
-
       await this.connectSFTP();
 
-      // Get the relevant files for this run
-      const [firstFile, nextFile] = await this.findRelevantFiles();
+      // Get all relevant files for this run
+      const files = await this.findRelevantFiles();
 
-      // Process first file (11 21 24_)
-      console.log("Processing first export file:", firstFile);
-      await this.processFile(firstFile, this.config.destFilename);
-      await this.triggerAndWaitForSync();
+      // Process each file and collect results
+      const results: FileProcessResult[] = [];
 
-      // Process second file (Next)
-      console.log("Processing next export file:", nextFile);
-      await this.processFile(nextFile, this.config.destFilename);
-      await this.triggerAndWaitForSync();
+      for (const file of files) {
+        try {
+          console.log(`Processing file: ${file}`);
+          await this.processFile(file, this.config.destFilename);
+          await this.triggerAndWaitForSync();
+          results.push({ filename: file, success: true });
+        } catch (error) {
+          console.error(`Error processing file ${file}:`, error);
+          results.push({
+            filename: file,
+            success: false,
+            error: error as Error,
+          });
+          // Send notification for this specific file failure
+          await this.sendErrorNotification(
+            error as Error,
+            `Failed to process file: ${file}`
+          );
+        }
+      }
 
-      console.log("Sync completed successfully");
-      return { success: true, message: "Sync completed successfully" };
+      // Analyze results
+      const failedFiles = results.filter((r) => !r.success);
+      const successFiles = results.filter((r) => r.success);
+
+      console.log(
+        `Sync completed. Success: ${successFiles.length}, Failed: ${failedFiles.length}`
+      );
+
+      // If any files failed, return partial success
+      if (failedFiles.length > 0) {
+        return {
+          success: true, // Still return true since some files processed
+          message: `Sync completed with some failures. ${successFiles.length} succeeded, ${failedFiles.length} failed.`,
+          partialFailure: true,
+          failedFiles: failedFiles.map((f) => f.filename),
+        };
+      }
+
+      return {
+        success: true,
+        message: "Sync completed successfully for all files",
+      };
     } catch (error) {
       console.error("Sync failed:", error);
       await this.sendErrorNotification(error as Error);
       return {
         success: false,
-        message: "Sync failed",
+        message: "Sync failed completely",
         error: error as Error,
       };
     } finally {
@@ -60,10 +99,17 @@ export class SyncService {
     const allFiles = await this.sftp.list(sourceDir);
 
     // Get the target date based on current time
-    // If we're running at midnight, we want yesterday's files
     const now = new Date();
     const targetDate = now.getHours() === 0 ? subHours(now, 1) : now;
     const dateStr = format(targetDate, "MMddyyyy");
+
+    // Define our file patterns
+    const filePatterns = [
+      "FTP_Prior1Month",
+      "FTP_Prior2Month",
+      "FTP_CurrentDayThruYear",
+      "FTP_NextYear",
+    ];
 
     // Filter files for our target date
     const dateFiles = allFiles
@@ -75,10 +121,7 @@ export class SyncService {
         if (!f.name.includes(dateStr)) return false;
 
         // Must match one of our patterns
-        return (
-          f.name.includes("FTP Export 11 21 24_") ||
-          f.name.includes("FTP Export Next")
-        );
+        return filePatterns.some((pattern) => f.name.includes(pattern));
       })
       .sort((a, b) => {
         // Sort by modification time, newest first
@@ -88,18 +131,26 @@ export class SyncService {
     console.log(`Found ${dateFiles.length} matching files for date ${dateStr}`);
 
     // Get the most recent file of each type
-    const firstExport = dateFiles.find((f) => f.name.includes("11 21 24_"));
-    const nextExport = dateFiles.find((f) => f.name.includes("Next"));
+    const selectedFiles = filePatterns
+      .map((pattern) => {
+        const file = dateFiles.find((f) => f.name.includes(pattern));
+        if (!file) {
+          console.warn(`Warning: No file found for pattern ${pattern}`);
+          return null;
+        }
+        return file.name;
+      })
+      .filter((name): name is string => name !== null);
 
-    if (!firstExport || !nextExport) {
+    if (selectedFiles.length === 0) {
       throw new Error(
-        `Missing required files for ${dateStr}. Found: ${dateFiles
+        `No matching files found for ${dateStr}. Available files: ${dateFiles
           .map((f) => f.name)
           .join(", ")}`
       );
     }
 
-    return [firstExport.name, nextExport.name];
+    return selectedFiles;
   }
 
   private async processFile(
@@ -234,7 +285,10 @@ export class SyncService {
     console.log("Successfully connected to SFTP server");
   }
 
-  private async sendErrorNotification(error: Error): Promise<void> {
+  private async sendErrorNotification(
+    error: Error,
+    context: string = ""
+  ): Promise<void> {
     try {
       console.log("Sending error notification");
 
@@ -243,6 +297,7 @@ export class SyncService {
         Subject: "SFTP Sync Error",
         Message: `Error during SFTP sync:
 Time: ${new Date().toISOString()}
+Context: ${context}
 Error: ${error.message}
 Stack: ${error.stack}
         `,

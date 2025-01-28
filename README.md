@@ -105,3 +105,16 @@ terraform apply
 - Update dependencies monthly
 - Rotate SFTP credentials as needed
 - Monitor CloudWatch Logs for issues
+
+## Changelog
+
+### v1.1.0
+
+- Updated to handle new file patterns:
+  - FTP_Prior1Month
+  - FTP_Prior2Month
+  - FTP_CurrentDayThruYear
+  - FTP_NextYear
+- Improved error handling with partial success states
+- Added individual file failure notifications
+- Each file is now processed independently
