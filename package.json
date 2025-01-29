@@ -1,6 +1,6 @@
 {
   "name": "sftp-sync",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Lambda function to sync SFTP files and trigger Hightouch",
   "main": "dist/index.js",
   "scripts": {
@@ -9,7 +9,7 @@
     "deploy": "npm run deploy:windows",
     "deploy:windows": "powershell -File scripts/deploy.ps1",
     "deploy:unix": "bash scripts/deploy.sh",
-    "local": "ts-node src/local.ts"
+    "local": "cross-env NODE_ENV=development ts-node -r dotenv/config src/local.ts"
   },
   "keywords": [],
   "author": "",
@@ -23,6 +23,8 @@
     "@types/aws-lambda": "^8.10.126",
     "@types/node": "^20.9.0",
     "@types/ssh2-sftp-client": "^9.0.4",
+    "cross-env": "^7.0.3",
+    "dotenv": "^16.3.1",
     "typescript": "^5.2.2",
     "ts-node": "^10.9.1"
   }
