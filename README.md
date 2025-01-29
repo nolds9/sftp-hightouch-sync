@@ -6,7 +6,7 @@ Simple Lambda function that runs on a schedule to copy files on a remote SFTP se
 
 ## Features
 
-- Scheduled execution (12pm, 12am EST)
+- Scheduled execution (12:05am, 12:05pm EST)
 - SFTP file copying
 - Hightouch sync triggering
 - SNS notifications for errors
@@ -107,6 +107,20 @@ terraform apply
 - Monitor CloudWatch Logs for issues
 
 ## Changelog
+
+### v1.2.1 (Current)
+
+- Changed sync schedule to run at 5 minutes past the hour (12:05) to allow more time for syncs
+
+### v1.2.0
+
+- Added support for parallel file processing with independent error handling
+- Improved file selection logic with better date handling
+- Enhanced logging for file processing and sync status
+- Added SNS notifications for individual file failures
+- Increased Lambda timeout to 5 minutes for better reliability
+- Updated dependencies to latest versions
+- Added Windows PowerShell deployment script
 
 ### v1.1.0
 

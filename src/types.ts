@@ -5,6 +5,7 @@ export interface SFTPConfig {
   password: string;
   sourceDir: string;
   destDir: string;
+  processedDir: string;
   destFilename: string;
 }
 

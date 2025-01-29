@@ -43,7 +43,6 @@ variable "sftp_password" {
   }
 }
 
-
 variable "sftp_source_dir" {
   description = "Source directory on SFTP server"
   type        = string
@@ -56,6 +55,11 @@ variable "sftp_dest_dir" {
 
 variable "sftp_dest_filename" {
   description = "Destination filename"
+  type        = string
+}
+
+variable "sftp_processed_dir" {
+  description = "Processed directory on SFTP server"
   type        = string
 }
 

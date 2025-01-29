@@ -89,6 +89,7 @@ resource "aws_lambda_function" "sftp_sync" {
       SFTP_PASSWORD       = var.sftp_password
       SFTP_SOURCE_DIR     = var.sftp_source_dir
       SFTP_DEST_DIR       = var.sftp_dest_dir
+      SFTP_PROCESSED_DIR  = var.sftp_processed_dir
       SFTP_DEST_FILENAME  = var.sftp_dest_filename
       HIGHTOUCH_API_KEY   = var.hightouch_api_key
       HIGHTOUCH_SYNC_ID   = var.hightouch_sync_id
@@ -101,13 +102,13 @@ resource "aws_lambda_function" "sftp_sync" {
 # CloudWatch Event Rule
 resource "aws_scheduler_schedule" "sftp_sync" {
   name        = "sftp-sync-schedule"
-  description = "Schedule for SFTP Sync Lambda (runs at 12am and 12pm Eastern)"
+  description = "Schedule for SFTP Sync Lambda (runs at 12:05am and 12:05pm Eastern)"
   
   flexible_time_window {
     mode = "OFF"
   }
 
-  schedule_expression = "cron(0 0,12 * * ? *)"
+  schedule_expression = "cron(5 0,12 * * ? *)"
   schedule_expression_timezone = "America/New_York"
 
   target {
