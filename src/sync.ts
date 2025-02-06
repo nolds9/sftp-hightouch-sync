@@ -13,11 +13,13 @@ export class SyncService {
   private config: Config;
   private sns: SNS;
   private sftp: Client;
+  private targetDate?: Date;
 
-  constructor(config: Config) {
+  constructor(config: Config, targetDate?: Date) {
     this.config = config;
     this.sns = new SNS({});
     this.sftp = new Client();
+    this.targetDate = targetDate;
   }
 
   async execute(): Promise<SyncResult> {
@@ -105,11 +107,20 @@ export class SyncService {
       }))
     );
 
-    // Get today's and yesterday's date strings
+    // Get date strings based on targetDate or current time
     const now = new Date();
-    const today = format(now, "MMddyyyy");
-    const yesterday = format(subHours(now, 24), "MMddyyyy");
-    console.log("Looking for dates:", { today, yesterday });
+    const baseDate = this.targetDate || now;
+    const targetDateStr = format(baseDate, "MMddyyyy");
+    const previousDateStr = format(subHours(baseDate, 24), "MMddyyyy");
+
+    // For deployed functionality, verify dates are within allowed range
+    if (!this.targetDate && !isToday(baseDate) && !isYesterday(baseDate)) {
+      throw new Error(
+        "Date must be either today or yesterday when running in production"
+      );
+    }
+
+    console.log("Looking for dates:", { targetDateStr, previousDateStr });
 
     // Define our file patterns
     const filePatterns = [
@@ -129,9 +140,12 @@ export class SyncService {
         }
 
         // Must contain either today's or yesterday's date
-        if (!f.name.includes(today) && !f.name.includes(yesterday)) {
+        if (
+          !f.name.includes(targetDateStr) &&
+          !f.name.includes(previousDateStr)
+        ) {
           console.log(
-            `Skipping ${f.name} - doesn't match dates ${today} or ${yesterday}`
+            `Skipping ${f.name} - doesn't match dates ${targetDateStr} or ${previousDateStr}`
           );
           return false;
         }
@@ -173,7 +187,7 @@ export class SyncService {
 
     if (selectedFiles.length === 0) {
       const error = new Error(
-        `No matching files found for ${today} or ${yesterday}. Available files: ${dateFiles
+        `No matching files found for ${targetDateStr} or ${previousDateStr}. Available files: ${dateFiles
           .map((f) => f.name)
           .join(", ")}`
       );
