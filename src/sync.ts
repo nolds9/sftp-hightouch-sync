@@ -111,7 +111,11 @@ export class SyncService {
     const now = new Date();
     const baseDate = this.targetDate || now;
     const targetDateStr = format(baseDate, "MMddyyyy");
-    const previousDateStr = format(subHours(baseDate, 24), "MMddyyyy");
+
+    // Only look for previous day's files when no target date is specified
+    const previousDateStr = this.targetDate
+      ? null
+      : format(subHours(baseDate, 24), "MMddyyyy");
 
     // For deployed functionality, verify dates are within allowed range
     if (!this.targetDate && !isToday(baseDate) && !isYesterday(baseDate)) {
@@ -139,13 +143,15 @@ export class SyncService {
           return false;
         }
 
-        // Must contain either today's or yesterday's date
+        // Must contain target date, or previous date if no target date specified
         if (
           !f.name.includes(targetDateStr) &&
-          !f.name.includes(previousDateStr)
+          (!previousDateStr || !f.name.includes(previousDateStr))
         ) {
           console.log(
-            `Skipping ${f.name} - doesn't match dates ${targetDateStr} or ${previousDateStr}`
+            `Skipping ${f.name} - doesn't match date ${targetDateStr}${
+              previousDateStr ? ` or ${previousDateStr}` : ""
+            }`
           );
           return false;
         }
@@ -220,19 +226,6 @@ export class SyncService {
       // Basic validation
       if (fileInfo.size === 0) {
         throw new Error(`File ${sourcePath} is empty`);
-      }
-
-      // Validate file is recent (within last 24 hours)
-      const modTime = new Date(fileInfo.modifyTime);
-      const now = new Date();
-      const hoursDiff = (now.getTime() - modTime.getTime()) / (1000 * 60 * 60);
-
-      if (hoursDiff > 24) {
-        throw new Error(
-          `File ${sourcePath} is too old. Modified: ${modTime.toISOString()} (${hoursDiff.toFixed(
-            1
-          )} hours ago)`
-        );
       }
 
       // Copy to destination for processing
